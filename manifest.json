@@ -3,12 +3,11 @@
   "name": "Simple Font Resizer",
   "version": "1.0",
   "description": "A simple, open-source tool to resize text on all tabs. No pro versions, no tracking.",
-  "permissions": ["scripting", "tabs"],
-  "host_permissions": ["<all_urls>"],
+  "permissions": ["scripting", "activeTab", "tabs"],
   "icons": {
-  "16": "icon16.png",
-  "48": "icon48.png",
-  "128": "icon128.png"
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
   },
   "action": {
     "default_popup": "popup.html"
