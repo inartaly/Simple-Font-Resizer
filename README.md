@@ -3,7 +3,7 @@
 A lightweight, open-source Chrome extension to quickly adjust font sizes across all your open tabs and windows. Built for users who want a simple tool without paywalls, tracking, or Pro versions.
 
 ## Features
-* **Global Scaling:** Resize text on all tabs and windows simultaneously.
+* **Text Scaling:** Resize text on active tabs.
 * **Visual Icons:** Easy-to-recognize A buttons for quick adjustments.
 * **Instant Reset:** One-click to restore the original website typography.
 * **100% Free:** No hidden fees, no subscriptions, and no data collection.
