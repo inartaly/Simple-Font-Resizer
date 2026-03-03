@@ -2,6 +2,7 @@
   "manifest_version": 3,
   "name": "Simple Font Resizer",
   "version": "1.0",
+  "description": "A simple, open-source tool to resize text on all tabs. No pro versions, no tracking.",
   "permissions": ["scripting", "tabs"],
   "host_permissions": ["<all_urls>"],
   "action": {
