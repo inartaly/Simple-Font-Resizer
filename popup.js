@@ -10,8 +10,8 @@ const runScript = (action, delta = 0) => {
               
               if (act === 'resize') {
                 const style = window.getComputedStyle(node);
-                // 1. ONLY capture if we haven't stored a version yet
-                if (!node.getAttribute('data-initial-font')) {
+                // 1. Capture the TRUE original only once
+                if (!node.hasAttribute('data-initial-font')) {
                   node.setAttribute('data-initial-font', style.fontSize);
                 }
 
@@ -19,14 +19,20 @@ const runScript = (action, delta = 0) => {
                 node.style.setProperty('font-size', (currentSize + d) + "px", 'important');
               } 
               else if (act === 'reset') {
-                // 2. TRUE RESET: Remove our inline overrides entirely
-                node.style.removeProperty('font-size');
-                
-                // If we have a saved initial value, restore it once and then clean up
+                // 2. Definitive Reset
                 const initial = node.getAttribute('data-initial-font');
                 if (initial) {
+                  // Clear our inline override first
+                  node.style.removeProperty('font-size');
+                  // Restore the exact initial value
                   node.style.fontSize = initial;
+                  // Remove tracking so it can be re-captured freshly if resized again
                   node.removeAttribute('data-initial-font');
+                }
+
+                // Clean up empty style attributes to prevent DOM clutter
+                if (node.getAttribute('style') === '') {
+                  node.removeAttribute('style');
                 }
               }
 
