@@ -5,40 +5,33 @@ const runScript = (action, delta = 0) => {
       chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: (act, d) => {
-          // 1. Maintain a persistent offset for this page session
-          if (window.totalOffset === undefined) window.totalOffset = 0;
+          // 1. Create or Update the Global CSS Variable
+          let styleEl = document.getElementById('font-resizer-style');
+          if (!styleEl) {
+            styleEl = document.createElement('style');
+            styleEl.id = 'font-resizer-style';
+            document.head.appendChild(styleEl);
+          }
 
-          const walkDOM = (node) => {
-            if (node.nodeType === 1) { // Element node
-              
-              // 2. SNAPSHOT: Capture the 'Home' position only once
-              if (!node.hasAttribute('data-initial-font')) {
-                const computed = window.getComputedStyle(node).fontSize;
-                node.setAttribute('data-initial-font', computed);
+          // 2. Track the offset on the html element
+          let currentOffset = parseInt(document.documentElement.getAttribute('data-font-offset') || '0');
+          
+          if (act === 'reset') {
+            currentOffset = 0;
+            document.documentElement.removeAttribute('data-font-offset');
+            styleEl.textContent = ''; // Clear all overrides
+          } else {
+            currentOffset += d;
+            document.documentElement.setAttribute('data-font-offset', currentOffset);
+            
+            // 3. THE MAGIC: This one rule forces EVERY element to shift 
+            // relative to its own natural size.
+            styleEl.textContent = `
+              * { 
+                font-size: calc(1em + ${currentOffset}px) !important; 
               }
-
-              if (act === 'resize') {
-                // Update offset only once per script execution
-                if (node === document.body) window.totalOffset += d;
-
-                // 3. MATH: Baseline + Total Offset (No compounding errors)
-                const base = parseFloat(node.getAttribute('data-initial-font'));
-                node.style.setProperty('font-size', (base + window.totalOffset) + "px", 'important');
-              } 
-              else if (act === 'reset') {
-                // 4. RESET: Kill the offset and strip the overrides
-                window.totalOffset = 0;
-                node.style.removeProperty('font-size');
-                node.removeAttribute('data-initial-font');
-                if (node.getAttribute('style') === '') node.removeAttribute('style');
-              }
-
-              // Shadow DOM and Children recursion
-              if (node.children) Array.from(node.children).forEach(walkDOM);
-              if (node.shadowRoot) Array.from(node.shadowRoot.children).forEach(walkDOM);
-            }
-          };
-          walkDOM(document.body);
+            `;
+          }
         },
         args: [action, delta]
       });
