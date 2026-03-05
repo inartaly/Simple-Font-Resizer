@@ -5,35 +5,39 @@ const runScript = (action, delta = 0) => {
       chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: (act, d) => {
-          // 1. Get or initialize the global offset on the body
-          let currentOffset = parseInt(document.body.getAttribute('data-font-offset') || '0');
-          
+          // 1. Reset the "session" offset if we are starting fresh after a reset
+          if (!document.body.hasAttribute('data-font-offset')) {
+            window.sessionOffset = 0;
+          }
+
+          // 2. Update the tracking offset
           if (act === 'reset') {
-            currentOffset = 0;
+            window.sessionOffset = 0;
             document.body.removeAttribute('data-font-offset');
           } else {
-            currentOffset += d;
-            document.body.setAttribute('data-font-offset', currentOffset);
+            window.sessionOffset = (window.sessionOffset || 0) + d;
+            document.body.setAttribute('data-font-offset', window.sessionOffset);
           }
 
           const walkDOM = (node) => {
             if (node.nodeType === 1) { // Element node
               
-              // 2. Capture the TRUE original baseline
+              // 3. Capture original baseline ONLY once
               if (!node.hasAttribute('data-initial-font')) {
                 const style = window.getComputedStyle(node);
                 node.setAttribute('data-initial-font', style.fontSize);
               }
 
               if (act === 'reset') {
-                // 3. THE CLEAN SLATE: Remove all our custom fingerprints
+                // 4. THE CLEAN SLATE: Revert to site defaults
                 node.style.removeProperty('font-size');
                 node.removeAttribute('data-initial-font');
                 if (node.getAttribute('style') === '') node.removeAttribute('style');
               } else {
-                // 4. APPLY: Initial + current total offset
+                // 5. APPLY: Baseline + Session Offset (stops the jumping)
                 const initialSize = parseFloat(node.getAttribute('data-initial-font'));
-                node.style.setProperty('font-size', (initialSize + currentOffset) + "px", 'important');
+                const newSize = initialSize + window.sessionOffset;
+                node.style.setProperty('font-size', newSize + "px", 'important');
               }
 
               // Recursion for children and Shadow DOM
