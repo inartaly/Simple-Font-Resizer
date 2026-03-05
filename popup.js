@@ -10,29 +10,38 @@ const runScript = (action, delta = 0) => {
               
               if (act === 'resize') {
                 const style = window.getComputedStyle(node);
-                // Capture original only if not already stored
+                
+                // 1. Capture the TRUE original only if we don't have it yet
                 if (!node.hasAttribute('data-initial-font')) {
                   node.setAttribute('data-initial-font', style.fontSize);
                 }
 
+                // 2. Always calculate based on the current computed style to avoid "jumps"
                 const currentSize = parseFloat(style.fontSize);
-                // Apply new size with !important to ensure it takes effect
                 node.style.setProperty('font-size', (currentSize + d) + "px", 'important');
               } 
               else if (act === 'reset') {
-                // THE FIX: Completely remove our overrides
+                // 3. COMPLETE PURGE
+                // Remove the inline override
                 node.style.removeProperty('font-size');
                 
-                // If the style attribute is now empty, remove it to prevent "weird" CSS ghosting
+                // If we have a saved initial value, we can explicitly set it back 
+                // to ensure the layout snaps back immediately
+                const initial = node.getAttribute('data-initial-font');
+                if (initial) {
+                  node.style.fontSize = initial;
+                }
+
+                // Remove the tracking attribute so the NEXT resize starts from a fresh capture
+                node.removeAttribute('data-initial-font');
+
+                // Clean up empty style attributes
                 if (node.getAttribute('style') === '') {
                   node.removeAttribute('style');
                 }
-                
-                // Clear the tracking attribute so we can start fresh
-                node.removeAttribute('data-initial-font');
               }
 
-              // Recursion for children and Shadow DOM (based on your latest commit)
+              // Recursion for children and Shadow DOM
               if (node.children) Array.from(node.children).forEach(walkDOM);
               if (node.shadowRoot) Array.from(node.shadowRoot.children).forEach(walkDOM);
             }
