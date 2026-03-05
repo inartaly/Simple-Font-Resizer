@@ -5,30 +5,34 @@ const runScript = (action, delta = 0) => {
       chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: (act, d) => {
-          // 1. Create or Update the Global CSS Variable
-          let styleEl = document.getElementById('font-resizer-style');
+          // 1. Setup the global style element
+          let styleEl = document.getElementById('simple-resizer-style');
           if (!styleEl) {
             styleEl = document.createElement('style');
-            styleEl.id = 'font-resizer-style';
+            styleEl.id = 'simple-resizer-style';
             document.head.appendChild(styleEl);
           }
 
-          // 2. Track the offset on the html element
-          let currentOffset = parseInt(document.documentElement.getAttribute('data-font-offset') || '0');
-          
+          // 2. Track offset on the root element (html)
+          let currentOffset = parseInt(document.documentElement.getAttribute('data-resizer-offset') || '0');
+
           if (act === 'reset') {
-            currentOffset = 0;
-            document.documentElement.removeAttribute('data-font-offset');
-            styleEl.textContent = ''; // Clear all overrides
+            // TOTAL WIPE: Removes all overrides and the style tag
+            document.documentElement.removeAttribute('data-resizer-offset');
+            styleEl.remove();
           } else {
             currentOffset += d;
-            document.documentElement.setAttribute('data-font-offset', currentOffset);
-            
-            // 3. THE MAGIC: This one rule forces EVERY element to shift 
-            // relative to its own natural size.
+            document.documentElement.setAttribute('data-resizer-offset', currentOffset);
+
+            // 3. APPLY: This uses 'zoom' or relative scaling which 
+            // keeps the layout from overlapping like in your screenshot.
             styleEl.textContent = `
-              * { 
-                font-size: calc(1em + ${currentOffset}px) !important; 
+              body { 
+                font-size: calc(100% + ${currentOffset}px) !important; 
+              }
+              /* Ensure headers and small text scale proportionally */
+              h1, h2, h3, h4, h5, h6, p, span, a, div {
+                font-size: inherit !important;
               }
             `;
           }
