@@ -10,33 +10,29 @@ const runScript = (action, delta = 0) => {
               
               if (act === 'resize') {
                 const style = window.getComputedStyle(node);
-                // 1. Capture the TRUE original only once
+                // Capture original only if not already stored
                 if (!node.hasAttribute('data-initial-font')) {
                   node.setAttribute('data-initial-font', style.fontSize);
                 }
 
                 const currentSize = parseFloat(style.fontSize);
+                // Apply new size with !important to ensure it takes effect
                 node.style.setProperty('font-size', (currentSize + d) + "px", 'important');
               } 
               else if (act === 'reset') {
-                // 2. Definitive Reset
-                const initial = node.getAttribute('data-initial-font');
-                if (initial) {
-                  // Clear our inline override first
-                  node.style.removeProperty('font-size');
-                  // Restore the exact initial value
-                  node.style.fontSize = initial;
-                  // Remove tracking so it can be re-captured freshly if resized again
-                  node.removeAttribute('data-initial-font');
-                }
-
-                // Clean up empty style attributes to prevent DOM clutter
+                // THE FIX: Completely remove our overrides
+                node.style.removeProperty('font-size');
+                
+                // If the style attribute is now empty, remove it to prevent "weird" CSS ghosting
                 if (node.getAttribute('style') === '') {
                   node.removeAttribute('style');
                 }
+                
+                // Clear the tracking attribute so we can start fresh
+                node.removeAttribute('data-initial-font');
               }
 
-              // Recursion for children and Shadow DOM
+              // Recursion for children and Shadow DOM (based on your latest commit)
               if (node.children) Array.from(node.children).forEach(walkDOM);
               if (node.shadowRoot) Array.from(node.shadowRoot.children).forEach(walkDOM);
             }
