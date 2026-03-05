@@ -5,43 +5,41 @@ const runScript = (action, delta = 0) => {
       chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: (act, d) => {
+          // Track the total offset globally within this execution context
+          window.fontResizerOffset = (window.fontResizerOffset || 0) + d;
+
           const walkDOM = (node) => {
             if (node.nodeType === 1) { // Element node
               
-              if (act === 'resize') {
+              // 1. Capture the TRUE original only if we don't have it yet
+              if (!node.hasAttribute('data-initial-font')) {
                 const style = window.getComputedStyle(node);
-                
-                // 1. Capture the TRUE original only if we don't have it yet
-                if (!node.hasAttribute('data-initial-font')) {
-                  node.setAttribute('data-initial-font', style.fontSize);
-                }
+                node.setAttribute('data-initial-font', style.fontSize);
+              }
 
-                // 2. Always calculate based on the current computed style to avoid "jumps"
-                const currentSize = parseFloat(style.fontSize);
-                node.style.setProperty('font-size', (currentSize + d) + "px", 'important');
+              const initialSize = parseFloat(node.getAttribute('data-initial-font'));
+
+              if (act === 'resize') {
+                // 2. Always calculate from the INITIAL baseline + total offset
+                const newSize = initialSize + window.fontResizerOffset;
+                node.style.setProperty('font-size', newSize + "px", 'important');
               } 
               else if (act === 'reset') {
-                // 3. COMPLETE PURGE
-                // Remove the inline override
+                // 3. COMPLETE RESET
+                window.fontResizerOffset = 0; // Reset the global offset
                 node.style.removeProperty('font-size');
                 
-                // If we have a saved initial value, we can explicitly set it back 
-                // to ensure the layout snaps back immediately
-                const initial = node.getAttribute('data-initial-font');
-                if (initial) {
-                  node.style.fontSize = initial;
-                }
-
-                // Remove the tracking attribute so the NEXT resize starts from a fresh capture
+                // Restore the exact initial string (px, rem, etc.)
+                node.style.fontSize = node.getAttribute('data-initial-font');
+                
+                // Clean up tracking so it can be re-homed if needed
                 node.removeAttribute('data-initial-font');
-
-                // Clean up empty style attributes
                 if (node.getAttribute('style') === '') {
                   node.removeAttribute('style');
                 }
               }
 
-              // Recursion for children and Shadow DOM
+              // Shadow DOM and Children recursion
               if (node.children) Array.from(node.children).forEach(walkDOM);
               if (node.shadowRoot) Array.from(node.shadowRoot.children).forEach(walkDOM);
             }
