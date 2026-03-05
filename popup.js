@@ -5,41 +5,38 @@ const runScript = (action, delta = 0) => {
       chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: (act, d) => {
-          // Track the total offset globally within this execution context
-          window.fontResizerOffset = (window.fontResizerOffset || 0) + d;
+          // 1. Get or initialize the global offset on the body
+          let currentOffset = parseInt(document.body.getAttribute('data-font-offset') || '0');
+          
+          if (act === 'reset') {
+            currentOffset = 0;
+            document.body.removeAttribute('data-font-offset');
+          } else {
+            currentOffset += d;
+            document.body.setAttribute('data-font-offset', currentOffset);
+          }
 
           const walkDOM = (node) => {
             if (node.nodeType === 1) { // Element node
               
-              // 1. Capture the TRUE original only if we don't have it yet
+              // 2. Capture the TRUE original baseline
               if (!node.hasAttribute('data-initial-font')) {
                 const style = window.getComputedStyle(node);
                 node.setAttribute('data-initial-font', style.fontSize);
               }
 
-              const initialSize = parseFloat(node.getAttribute('data-initial-font'));
-
-              if (act === 'resize') {
-                // 2. Always calculate from the INITIAL baseline + total offset
-                const newSize = initialSize + window.fontResizerOffset;
-                node.style.setProperty('font-size', newSize + "px", 'important');
-              } 
-              else if (act === 'reset') {
-                // 3. COMPLETE RESET
-                window.fontResizerOffset = 0; // Reset the global offset
+              if (act === 'reset') {
+                // 3. THE CLEAN SLATE: Remove all our custom fingerprints
                 node.style.removeProperty('font-size');
-                
-                // Restore the exact initial string (px, rem, etc.)
-                node.style.fontSize = node.getAttribute('data-initial-font');
-                
-                // Clean up tracking so it can be re-homed if needed
                 node.removeAttribute('data-initial-font');
-                if (node.getAttribute('style') === '') {
-                  node.removeAttribute('style');
-                }
+                if (node.getAttribute('style') === '') node.removeAttribute('style');
+              } else {
+                // 4. APPLY: Initial + current total offset
+                const initialSize = parseFloat(node.getAttribute('data-initial-font'));
+                node.style.setProperty('font-size', (initialSize + currentOffset) + "px", 'important');
               }
 
-              // Shadow DOM and Children recursion
+              // Recursion for children and Shadow DOM
               if (node.children) Array.from(node.children).forEach(walkDOM);
               if (node.shadowRoot) Array.from(node.shadowRoot.children).forEach(walkDOM);
             }
