@@ -5,39 +5,30 @@ const runScript = (action, delta = 0) => {
       chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: (act, d) => {
-          // 1. Maintain a global offset for this specific session
-          if (window.sessionOffset === undefined) window.sessionOffset = 0;
+          // 1. Maintain a persistent offset for this page session
+          if (window.totalOffset === undefined) window.totalOffset = 0;
 
           const walkDOM = (node) => {
             if (node.nodeType === 1) { // Element node
               
-              // 2. THE SNAPSHOT: Save the TRUE default values once
+              // 2. SNAPSHOT: Capture the 'Home' position only once
               if (!node.hasAttribute('data-initial-font')) {
-                const computedSize = window.getComputedStyle(node).fontSize;
-                node.setAttribute('data-initial-font', computedSize);
+                const computed = window.getComputedStyle(node).fontSize;
+                node.setAttribute('data-initial-font', computed);
               }
 
               if (act === 'resize') {
-                // 3. Update the session offset (e.g., +2, +4, +6...)
-                // We only update this once per execution, so we check if it's the first node
-                if (node === document.body) {
-                  window.sessionOffset += d;
-                }
+                // Update offset only once per script execution
+                if (node === document.body) window.totalOffset += d;
 
-                // 4. Always calculate: [Snapshot Value] + [Total Session Offset]
-                const baseSize = parseFloat(node.getAttribute('data-initial-font'));
-                const newSize = baseSize + window.sessionOffset;
-                node.style.setProperty('font-size', newSize + "px", 'important');
-
-              } else if (act === 'reset') {
-                // 5. THE RESET: Kill the session offset and clear styles
-                window.sessionOffset = 0;
+                // 3. MATH: Baseline + Total Offset (No compounding errors)
+                const base = parseFloat(node.getAttribute('data-initial-font'));
+                node.style.setProperty('font-size', (base + window.totalOffset) + "px", 'important');
+              } 
+              else if (act === 'reset') {
+                // 4. RESET: Kill the offset and strip the overrides
+                window.totalOffset = 0;
                 node.style.removeProperty('font-size');
-                
-                // Optional: Restore the exact string from our snapshot for instant snap-back
-                node.style.fontSize = node.getAttribute('data-initial-font');
-                
-                // Wipe the snapshot so it can be re-homed if the page changes
                 node.removeAttribute('data-initial-font');
                 if (node.getAttribute('style') === '') node.removeAttribute('style');
               }
