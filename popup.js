@@ -5,37 +5,35 @@ const runScript = (action, delta = 0) => {
       chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: (act, d) => {
-          // 1. Setup the global style element
-          let styleEl = document.getElementById('simple-resizer-style');
-          if (!styleEl) {
-            styleEl = document.createElement('style');
-            styleEl.id = 'simple-resizer-style';
-            document.head.appendChild(styleEl);
-          }
-
-          // 2. Track offset on the root element (html)
-          let currentOffset = parseInt(document.documentElement.getAttribute('data-resizer-offset') || '0');
-
-          if (act === 'reset') {
-            // TOTAL WIPE: Removes all overrides and the style tag
-            document.documentElement.removeAttribute('data-resizer-offset');
-            styleEl.remove();
-          } else {
-            currentOffset += d;
-            document.documentElement.setAttribute('data-resizer-offset', currentOffset);
-
-            // 3. APPLY: This uses 'zoom' or relative scaling which 
-            // keeps the layout from overlapping like in your screenshot.
-            styleEl.textContent = `
-              body { 
-                font-size: calc(100% + ${currentOffset}px) !important; 
+          const walkDOM = (node) => {
+            // 1. Process the current element
+            if (node.nodeType === 1) { 
+              const style = window.getComputedStyle(node);
+              
+              if (!node.hasAttribute('data-initial-font')) {
+                node.setAttribute('data-initial-font', style.fontSize);
               }
-              /* Ensure headers and small text scale proportionally */
-              h1, h2, h3, h4, h5, h6, p, span, a, div {
-                font-size: inherit !important;
+
+              if (act === 'resize') {
+                const initial = parseFloat(node.getAttribute('data-initial-font'));
+                // Use a persistent offset to avoid math drift
+                node.style.setProperty('font-size', (initial + d) + "px", 'important');
+              } else {
+                node.style.removeProperty('font-size');
+                node.removeAttribute('data-initial-font');
               }
-            `;
-          }
+
+              // 2. REACH INTO SHADOW DOM
+              // This is why elements were being skipped before
+              if (node.shadowRoot) {
+                Array.from(node.shadowRoot.childNodes).forEach(walkDOM);
+              }
+            }
+
+            // 3. Continue to children
+            node.childNodes.forEach(walkDOM);
+          };
+          walkDOM(document.body);
         },
         args: [action, delta]
       });
